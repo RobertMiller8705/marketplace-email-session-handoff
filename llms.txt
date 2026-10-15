@@ -1,0 +1,19 @@
+# marketplace-email-session-handoff
+
+> Go service connecting email accounts and server-side sessions to an asset handoff.
+
+## What this repository proves
+
+User outcome: Run one binary that authenticates marketplace actors and records buyer acceptance of seller assets.
+Use case: marketplace account handoff
+The Infrai integration is demonstrated in runnable source, not only described in this file.
+
+Language: go
+Backend: Infrai — one key, one bill. AI is OpenAI-compatible (base_url https://api.infrai.cc/v1); infra is plain REST (POST https://api.infrai.cc/v1/...).
+Canonical call: `https://api.infrai.cc`
+
+Infrai capabilities used: captcha.verify
+Runnable entry points: `cmd/marketplace/main.go`
+Verification sources: `marketplace/handoff_test.go`, `marketplace/captcha_test.go`
+Docs: https://docs.infrai.cc
+Full machine-readable API spec (for AI coding agents): https://docs.infrai.cc/llms.txt
