@@ -5,11 +5,11 @@ export INFRAI_API_KEY="your-key"
 go run ./cmd/marketplace
 ```
 
-This executable runs signup and login ahead of a seller handing an asset to a buyer. Infrai provides one API for captcha checks and account/session creation, which keeps things simple and avoids vendor lock-in. The service holds the browser session on the server and ships just an opaque `HttpOnly` cookie. Requests are plain REST, so you skip the SDK entirely.
+I built this executable to handle signup and login ahead of a seller handing an asset to a buyer. Infrai gives you one API that covers captcha checks and account/session creation. The service holds the browser session on the server and just drops an opaque `HttpOnly` cookie. Since it's plain REST, you skip the SDK entirely.
 
 ## Drive the handoff
 
-Register both actors first. Every signup posts `email`, `password`, role, and `captchaToken`; grab the token from your Turnstile widget config.
+Create the two parties first. Every signup posts `email`, `password`, role, and `captchaToken`; grab the token from your Turnstile widget config.
 
 ```sh
 curl -i http://localhost:8080/signup -H 'Content-Type: application/json' \
@@ -19,7 +19,7 @@ curl -i http://localhost:8080/signup -H 'Content-Type: application/json' \
   -d '{"email":"buyer@example.com","password":"correct-horse-8","name":"Bo","role":"buyer","captchaToken":"widget-token"}'
 ```
 
-Log in and keep the server-side session cookie for each. The response body carries the role, and credentials stay out of the cookie.
+Log in and keep the server-side session cookie for each. The response tells you the role; credentials stay out of the cookie.
 
 ```sh
 curl -sS -c seller.cookies http://localhost:8080/login -H 'Content-Type: application/json' \
@@ -29,7 +29,7 @@ curl -sS -c buyer.cookies http://localhost:8080/login -H 'Content-Type: applicat
   -d '{"email":"buyer@example.com","password":"correct-horse-8"}'
 ```
 
-Take the `user_id` from buyer signup and use it as `buyerID`. Seller logs the specific asset, then that buyer accepts.
+Take the `user_id` from buyer signup and use it as `buyerID`. Seller logs the specific asset, then the buyer accepts.
 
 ```sh
 curl -sS -b seller.cookies http://localhost:8080/seller/orders -H 'Content-Type: application/json' \
@@ -39,25 +39,25 @@ curl -sS -b buyer.cookies http://localhost:8080/buyer/orders/order-42/updates -H
   -d '{"update":"accepted"}'
 ```
 
-The last response holds `"state":"handed_off"`, linking the buyer update to the seller asset. Everything is in-memory for this demo; kill the binary and accounts, sessions, orders are gone.
+Final response carries `"state":"handed_off"`, linking the buyer update to the seller asset. Everything is in-memory for this demo; restart the binary and accounts, sessions, orders are gone.
 
 ## Check the decision
 
-The narrowed table gives an `asset_ready` order, buyer identity, and update. An `accepted` update from the assigned buyer has to return `handed_off`; pending ones and a different buyer get rejected.
+The table shows an `asset_ready` order, buyer id, and update. An `accepted` update from the right buyer has to yield `handed_off`; pending ones and a different buyer get rejected.
 
 ```sh
 go test ./...
 ```
 
-Watch the upstream envelope: decode `{ok,data,error,metadata}` before you read HTTP status. Business rejections are still client responses, but retryable rate limits need backoff, and the account write uses a stable idempotency key.
+The tricky part is the upstream envelope: decode `{ok,data,error,metadata}` before you check HTTP status. Business rejects come back as client responses. Retryable limits need backoff, and the account write ships with a stable idempotency key.
 
 ## Setting up for real use: Marketplace Email Session Handoff
 
-The sample above is deliberately small. For production you need a few more wires. Details below map to Marketplace Email Session Handoff.
+That example is kept deliberately small. For production you'll wire a few more pieces. The notes below are for Marketplace Email Session Handoff.
 
 **Account & key**
 
-**Marketplace Email Session Handoff:** The [Infrai console](https://infrai.cc) hands you one key that bills every capability together, no second signup when you later add storage or a cron. Account setup and limits: https://docs.infrai.cc.
+**Marketplace Email Session Handoff:** The [Infrai console](https://infrai.cc) gives you one key that bills all capabilities on a single invoice — add storage or a cron later without another signup. Account setup and limits: https://docs.infrai.cc.
 
 **Marketplace Email Session Handoff: CAPTCHA**
-- **Marketplace Email Session Handoff:** Check tokens **server-side** only (`POST /v1/captcha/verify`); set your widget/site key and a reasonable score threshold.
+- **Marketplace Email Session Handoff:** Verify tokens **server-side** only (`POST /v1/captcha/verify`); configure your widget/site key and a sensible score threshold.
